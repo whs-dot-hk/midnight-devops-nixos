@@ -1,0 +1,13 @@
+result
+result-*
+.direnv/
+.pre-commit-config.yaml.bak
+
+# Never commit key material. The design keeps secrets in GCP Secret Manager
+# and out of this repo entirely; these patterns are a backstop, not the plan.
+*.pem
+*.key
+*-seed-phrase
+secret_ed25519
+.pgpassfile
+*.env
