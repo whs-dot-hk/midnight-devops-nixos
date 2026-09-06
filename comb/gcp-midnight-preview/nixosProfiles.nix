@@ -8,3 +8,4 @@
 {}
 // (cell.groups.vali.nixosProfiles a)
 // (cell.groups.rpc.nixosProfiles a)
+// (cell.groups.boot.nixosProfiles a)

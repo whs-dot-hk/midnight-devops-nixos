@@ -8,3 +8,4 @@
 {}
 // (cell.groups.vali.nixosModules a)
 // (cell.groups.rpc.nixosModules a)
+// (cell.groups.boot.nixosModules a)

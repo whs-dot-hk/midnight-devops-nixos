@@ -8,3 +8,4 @@
 {}
 // (cell.groups.vali.nixosConfigurations a)
 // (cell.groups.rpc.nixosConfigurations a)
+// (cell.groups.boot.nixosConfigurations a)

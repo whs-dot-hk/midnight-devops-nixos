@@ -8,3 +8,4 @@
 {}
 // (cell.groups.vali.hardwareProfiles a)
 // (cell.groups.rpc.hardwareProfiles a)
+// (cell.groups.boot.hardwareProfiles a)

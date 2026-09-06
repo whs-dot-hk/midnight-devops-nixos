@@ -6,6 +6,4 @@
   ...
 } @ a:
 {}
-// (cell.groups.vali.colmenaConfigurations a)
-// (cell.groups.rpc.colmenaConfigurations a)
-// (cell.groups.boot.colmenaConfigurations a)
+// (cell.groups.boot.nixosModules a)

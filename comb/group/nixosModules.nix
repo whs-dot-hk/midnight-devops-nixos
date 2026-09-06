@@ -24,4 +24,8 @@
 in {
   gcp-midnight-preview-vali = stack;
   gcp-midnight-preview-rpc = stack;
+
+  gcp-midnight-preview-boot = stack;
+  gcp-midnight-preprod-boot = stack;
+  gcp-midnight-mainnet-boot = stack;
 }
