@@ -141,6 +141,12 @@
   # --------------------------------------------------------------------------
   # Networks. Public protocol parameters only.
   # --------------------------------------------------------------------------
+  # The bootnode lists below are the ones the pinned midnight-node release
+  # ships in `res/<network>/bootnodes-config.json`; preprod and mainnet also
+  # carry them inside `chain-spec-raw.json`, so passing --bootnodes there is
+  # belt-and-braces rather than load-bearing. Preview's shipped chain spec has
+  # an empty `bootNodes`, which is why it *must* be listed here. Re-check these
+  # against `res/` whenever comb/lib/pkgs/versions.nix bumps the node.
   network-preview = {...}: {
     services.midnight-node = {
       chainNetwork = "preview";
@@ -158,6 +164,10 @@
     services.midnight-node = {
       chainNetwork = "preprod";
       cfgPreset = "preprod";
+      bootNodes = [
+        "/dns/bootnode-1.preprod.midnight.network/tcp/30333/ws/p2p/12D3KooWQxxUgq7ndPfAaCFNbAxtcKYxrAzTxDfRGNktF75SxdX5"
+        "/dns/bootnode-2.preprod.midnight.network/tcp/30333/ws/p2p/12D3KooWNrUBs22FfmgjqFMa9ZqKED2jnxwsXWw5E4q2XVwN35TJ"
+      ];
     };
 
     services.cardano-node.network = "preprod";
@@ -167,6 +177,20 @@
     services.midnight-node = {
       chainNetwork = "mainnet";
       cfgPreset = "mainnet";
+
+      # Mainnet's chain spec is `id = "midnight"`, not `midnight_mainnet` like
+      # the testnets, so the node's on-disk chain directory does not follow
+      # from CFG_PRESET here. Spelled out so the node key is written where the
+      # node will actually look for it.
+      chainDirName = "midnight";
+
+      # Two `.mainnet.` and two `.bn.` hostnames — both sets are upstream's.
+      bootNodes = [
+        "/dns4/bootnode-whippet-bengal.mainnet.midnight.network/tcp/30333/ws/p2p/12D3KooWMmfho3eEFvcnThAfzc9QfieTc91fdhvByL4a2naRjbr2"
+        "/dns4/bootnode-labrador-marten.mainnet.midnight.network/tcp/30333/ws/p2p/12D3KooWK2c9vf4UtrjGB27A8weKd6eiBnRQSfeR4TVmQv9MDdDt"
+        "/dns4/bootnode-glider-spaniel.bn.midnight.network/tcp/30333/ws/p2p/12D3KooWHif7N1ZPhrB8WxTFqjWTxo2U2a2FtJuSA8XRBdFMss6i"
+        "/dns4/bootnode-dog-pelican.bn.midnight.network/tcp/30333/ws/p2p/12D3KooWQ2NCZCnqkYKHKsYVUc8amBKAk4jhEMJyYDAJjmSuM4uK"
+      ];
     };
 
     services.cardano-node.network = "mainnet";
