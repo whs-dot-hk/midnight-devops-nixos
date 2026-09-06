@@ -69,7 +69,7 @@
       then "${common.appHome}/secrets"
       else null;
 
-    network_dir = "${node.basePath}/chains/midnight_${node.cfgPreset}/network";
+    network_dir = "${node.basePath}/chains/${node.chainDirName}/network";
     chains_dir = "${node.basePath}/chains";
 
     db =

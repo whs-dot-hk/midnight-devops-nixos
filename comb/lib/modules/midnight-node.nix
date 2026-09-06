@@ -195,10 +195,23 @@ in {
     cfgPreset = mkOption {
       type = types.str;
       default = "preview";
+      description = "CFG_PRESET.";
+    };
+
+    chainDirName = mkOption {
+      type = types.str;
+      default = "midnight_${cfg.cfgPreset}";
+      defaultText = lib.literalExpression "\"midnight_\${config.services.midnight-node.cfgPreset}\"";
       description = ''
-        CFG_PRESET. Also names the on-disk chain directory
-        (<basePath>/chains/midnight_<cfgPreset>), so the node key lands in the
-        right place.
+        Name of the node's on-disk chain directory
+        (<basePath>/chains/<chainDirName>). Substrate derives it from the
+        chain spec's `id`, and for the testnets that is
+        `midnight_<cfgPreset>` — hence the default. Mainnet's spec uses the
+        bare id `midnight`, so that network sets this explicitly.
+
+        Getting it wrong is quiet rather than loud: the node key is written to
+        a directory the node never reads, so it silently generates a fresh
+        one on every boot and the peer ID is not stable.
       '';
     };
 

@@ -332,8 +332,23 @@ nixos-rebuild switch --flake .#gcp-midnight-preview-vali-instance00
 ### Adding a network
 
 `comb/lib/nixosProfiles.nix` already carries `network-preview`,
-`network-preprod` and `network-mainnet`. Only preview has bootnodes filled in —
+`network-preprod` and `network-mainnet`, each with its bootnodes filled in —
 they are public protocol parameters, unlike anything in `comb/group`.
+
+The bootnode lists come from the pinned node release itself, in
+`res/<network>/bootnodes-config.json`; preprod and mainnet repeat them inside
+`chain-spec-raw.json`, preview ships an empty `bootNodes` there. To re-read
+them after a `comb/lib/pkgs/versions.nix` bump:
+
+```sh
+jq -r '.bootnodes[]' "$(nix build --no-link --print-out-paths .#midnight-node)/share/midnight-node/res/mainnet/bootnodes-config.json"
+```
+
+Mainnet also needs `chainDirName = "midnight"`: its chain spec uses the bare
+id `midnight` where the testnets use `midnight_<preset>`, and that id is what
+names `<basePath>/chains/<dir>` — which is where `gcp-secrets.nix` writes the
+node key. Left at the default the key lands in a directory the node never
+reads, and it quietly regenerates a peer ID on every boot.
 
 The network is part of the cell name, so a second network is a second fleet
 cell: copy `comb/gcp-midnight-preview/` to e.g. `comb/gcp-midnight-preprod/`,
