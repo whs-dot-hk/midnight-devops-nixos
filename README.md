@@ -185,14 +185,17 @@ comb/
 │   ├── pkgs/                pinned upstream release binaries + config
 │   ├── nixosModules.nix     modules/, as a cell block
 │   ├── nixosProfiles.nix    values: common, gcp, metrics, ops-agent,
-│   │                        network-*, node-*
+│   │                        network-*, node-*, boot-*
 │   ├── hardwareProfiles.nix GCE guest
 │   └── diskoConfigurations.nix  the root disk and the chain-data disk
 │   ├── packages.nix         the node binaries, as a cell block
 │   └── pkgs/midnight-fetch-secrets/  the boot-time Secret Manager client (Rust)
-├── gcp-midnight-preview/    the fleet: groups.nix + generated block targets
+├── gcp-midnight-preview/    a fleet: groups.nix + generated block targets
+├── gcp-midnight-preprod/    one cell per network — the network is part of the
+├── gcp-midnight-mainnet/    cell name, so it cannot be a per-group choice
 ├── group/                   per-class composition + deployment specifics
-└── host/                    per-machine overrides (hostname, telemetry name)
+└── host/                    per-machine overrides (hostname, telemetry name,
+                             public addr)
 ```
 
 The three-level `lib` / `group` / `host` split is hive-group's: `lib` holds
@@ -243,17 +246,19 @@ see [Secrets](#secrets).
 
 ## Names live outside this repo
 
-Nothing here names a real machine. The fleet in `comb/gcp-midnight-preview`,
-`comb/group` and `comb/host` is a **worked example** — two preview nodes, placeholder
-addresses, `REPLACE-ME` for the GCP project and Cloud SQL host. Every identifier
-a deployment cares about is an input:
+Nothing here names a real machine. The fleets in `comb/gcp-midnight-preview`,
+`comb/gcp-midnight-preprod` and `comb/gcp-midnight-mainnet`, together with
+`comb/group` and `comb/host`, are a **worked example** — two preview nodes and
+one bootnode per network, placeholder addresses, `REPLACE-ME` for the GCP
+project, the Cloud SQL hosts and the bootnode hostnames. Every identifier a
+deployment cares about is an input:
 
 | What | Set where |
 |---|---|
 | group key prefix | `prefix` argument to `group.new` (must match the cell name) |
 | group / instance names | `groupName`, `instancePrefix`, `start` to `group.new` |
 | hostnames | `comb/host/nixosProfiles.nix` |
-| GCP project, Cloud SQL host | `comb/group/nixosProfiles.nix` |
+| GCP project, Cloud SQL hosts | `comb/group/nixosProfiles.nix` |
 | Secret Manager IDs | `secretIds` in `comb/lib/helpers.nix` |
 | telemetry name, public addr | `services.midnight-node.{nodeName,publicAddr}` |
 
@@ -288,7 +293,8 @@ mechanics reaches into the cells directly:
   #   .nixosModules          midnight-node, cardano-node, cardano-db-sync,
   #                          gcp-secrets, gcp-ops-agent, common — plain paths,
   #                          hive not required
-  #   .nixosProfiles         common, gcp, metrics, ops-agent, network-*, node-*
+  #   .nixosProfiles         common, gcp, metrics, ops-agent, network-*,
+  #                          node-*, boot-* (a whole bootnode, network included)
   #   .hardwareProfiles.gcp
   #   .diskoConfigurations   gcp-root-and-chain-data, gcp-root, gcp-chain-data
   #   .helpers               group.new, secretIds
@@ -307,14 +313,16 @@ names.
 ## Using it
 
 Replace every `REPLACE-ME` first — they are in `comb/group/nixosProfiles.nix`
-(GCP project, Cloud SQL host) and `comb/gcp-midnight-preview/groups.nix`
-(instance IPs).
+(GCP project, one Cloud SQL host per network), `comb/gcp-midnight-*/groups.nix`
+(instance IPs) and `comb/host/nixosProfiles.nix` (each bootnode's public
+address).
 
 ```sh
 nix flake check              # evaluate every host
 colmena build                # build the whole fleet
 colmena apply --on @gcp-midnight-preview-vali-group-a
 colmena apply --on gcp-midnight-preview-vali-instance00
+colmena apply --on @gcp-midnight-mainnet-group-a
 
 # single host, from the host itself
 nixos-rebuild switch --flake .#gcp-midnight-preview-vali-instance00
@@ -322,11 +330,10 @@ nixos-rebuild switch --flake .#gcp-midnight-preview-vali-instance00
 
 ### Adding a node
 
-1. Add or extend a `group.new` in `comb/gcp-midnight-preview/groups.nix` (one IP
-   per instance).
+1. Add or extend a `group.new` in that network's `comb/gcp-midnight-*/groups.nix`
+   (one IP per instance).
 2. If it is a new group, add its `cell.groups.<name>.<block> a` line to each of
-   the six files in `comb/gcp-midnight-preview/`, and a key in each
-   `comb/group/*.nix`.
+   the six files in the same cell, and a key in each `comb/group/*.nix`.
 3. Add the hostname in `comb/host/nixosProfiles.nix`.
 
 ### Adding a network
@@ -350,10 +357,42 @@ names `<basePath>/chains/<dir>` — which is where `gcp-secrets.nix` writes the
 node key. Left at the default the key lands in a directory the node never
 reads, and it quietly regenerates a peer ID on every boot.
 
-The network is part of the cell name, so a second network is a second fleet
-cell: copy `comb/gcp-midnight-preview/` to e.g. `comb/gcp-midnight-preprod/`,
-set `prefix = "gcp-midnight-preprod-"` to match, and give it its own keys in
+The network is part of the cell name, so a further network is a further fleet
+cell: copy `comb/gcp-midnight-preprod/` to e.g. `comb/gcp-midnight-devnet/`,
+set `prefix = "gcp-midnight-devnet-"` to match, and give it its own keys in
 `comb/group/*.nix` and `comb/host/nixosProfiles.nix`.
+
+### Bootnodes
+
+A bootnode is the address other nodes are handed to find the network at all, so
+the network is not an orthogonal choice the way it is for a validator.
+`comb/lib/nixosProfiles.nix` carries one whole-node profile per network —
+`boot-preview`, `boot-preprod`, `boot-mainnet` — each bundling `midnight-stack`,
+that network's `network-*` and `node-boot`. A group imports one of those plus
+the platform profiles; `comb/group/nixosProfiles.nix` does exactly that, three
+times, in `bootGroup`.
+
+Two things are genuinely per-machine, and both live in
+`comb/host/nixosProfiles.nix`:
+
+- **`publicAddr`** — the multiaddr peers dial, so it must be the instance's
+  externally reachable address, in the `/dns4/<name>/tcp/30333/ws` form upstream
+  publishes. The `30333` in it is `services.midnight-node.p2pPort`, which the
+  module passes as `--port` for `boot` and `relay` nodes.
+- **the peer ID** — *not* configured here. It comes from the `node-key` in the
+  host's `<host>-boot-node-keys` secret, which `gcp-secrets.nix` writes to
+  `<basePath>/chains/<chainDirName>/network/secret_ed25519`. Rotate that secret
+  and every peer's `--bootnodes` entry goes stale, so create it before the first
+  boot rather than letting the node generate one. Read the resulting identity
+  off the running node before handing the multiaddr out:
+
+```sh
+journalctl -u midnight-node | grep 'Local node identity'
+```
+
+A bootnode gets no validator keys and no seed phrases — it does not author
+blocks — but it does run the full Cardano stack and needs its own Cloud SQL
+endpoint, same as a validator.
 
 ## Disks
 
@@ -462,7 +501,8 @@ in `destroy` / `zap_create_mount` mode will, root disk included.
 
 Built and checked on x86_64-linux:
 
-- both hosts evaluate to a `config.system.build.toplevel` derivation
+- all five hosts evaluate to a `config.system.build.toplevel` derivation —
+  the two preview nodes and the preview/preprod/mainnet bootnodes
 - the packages build; `midnight-node --version`, `cardano-node --version`
   and `cardano-db-sync --version` run from the store
 - `cardano-configs-preview/config.json` carries
@@ -474,7 +514,13 @@ Built and checked on x86_64-linux:
 - the JSON the module renders deserialises into the program's config for both
   node types, and `ExecStart` is the binary plus that file
 - `colmenaHive` emits schema `v0.5`
-- rendered `ExecStart` lines carry the intended arguments for each node type
+- rendered `ExecStart` lines carry the intended arguments for each node type;
+  each bootnode gets its own network's `--bootnodes`, `--port 30333`,
+  `--public-addr` and archive pruning, and the mainnet one resolves
+  `chainDirName` to `midnight`
+- each bootnode's derived secret IDs come out as `<host>-secrets`,
+  `<host>-boot-node-keys` and `<host>-db-credentials`, with the validator and
+  relay IDs left null
 - with both disks declared, `fileSystems` resolves to `/` on
   `by-label/nixos` (ext4, `autoResize`), `/boot` on `by-partlabel/disk-root-ESP`
   (vfat) and the four btrfs mounts; GRUB comes out `nodev` + `efiSupport` +

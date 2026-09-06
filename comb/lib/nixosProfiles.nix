@@ -3,11 +3,14 @@
 # Nothing here is deployment-specific. Anything that identifies a particular
 # project, host, address or endpoint belongs in ../midnight/groups.nix (fleet
 # shape) or ../host (per-machine), never in a shared profile.
+#
+# The set is `rec` so the composite profiles at the bottom can name the halves
+# they are built from; nothing here is recursive beyond that.
 {
   inputs,
   cell,
   ...
-}: {
+}: rec {
   # --------------------------------------------------------------------------
   # Baseline: applies to every machine in the fleet.
   # --------------------------------------------------------------------------
@@ -256,5 +259,31 @@
     networking.firewall.allowedTCPPorts = [
       config.services.midnight-node.p2pPort
     ];
+  };
+
+  # --------------------------------------------------------------------------
+  # Bootnodes: a whole node, network included.
+  # --------------------------------------------------------------------------
+  # A bootnode is what other nodes dial to find the network, so which chain it
+  # is on is not an orthogonal choice the way it is for a validator — the
+  # address a peer is given and the network it joins are the same fact. These
+  # bundle the three halves that always travel together (the stack, one
+  # network, the `boot` node type) and leave the platform-specific profiles
+  # (`gcp`, `metrics`, `ops-agent`) and the deployment's own values to the
+  # group importing them.
+  #
+  # A bootnode is *not* a validator: no session keys, no seed phrases. It does
+  # need a stable peer ID, which is the `node-key` in its `bootNodeKeys`
+  # secret — regenerate that and every peer's --bootnodes entry is stale.
+  boot-preview = {
+    imports = [midnight-stack network-preview node-boot];
+  };
+
+  boot-preprod = {
+    imports = [midnight-stack network-preprod node-boot];
+  };
+
+  boot-mainnet = {
+    imports = [midnight-stack network-mainnet node-boot];
   };
 }

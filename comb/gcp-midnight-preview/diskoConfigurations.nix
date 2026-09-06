@@ -8,3 +8,4 @@
 {}
 // (cell.groups.vali.diskoConfigurations a)
 // (cell.groups.rpc.diskoConfigurations a)
+// (cell.groups.boot.diskoConfigurations a)

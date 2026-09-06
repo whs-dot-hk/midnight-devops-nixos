@@ -45,4 +45,12 @@ in {
       "10.0.0.12"
     ];
   };
+
+  boot = group.new {
+    inherit prefix;
+    groupName = "boot";
+    ips = [
+      "10.0.0.13"
+    ];
+  };
 }
